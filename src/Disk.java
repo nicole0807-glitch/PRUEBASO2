@@ -45,4 +45,12 @@ public class Disk {
             current=nxt;
         }
     }
+
+    public int countFree(){
+        int free=0;
+        for(int i=0;i<blocks.length;i++){
+            if(blocks[i].free) free++;
+        }
+        return free;
+    }
 }

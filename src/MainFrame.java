@@ -18,6 +18,7 @@ public class MainFrame extends JFrame {
     private DefaultListModel<String> processModel=new DefaultListModel<>();
     private JComboBox<String> modeCombo;
     private JComboBox<String> policyCombo;
+    private JLabel diskInfoLabel;
     private String currentUser="admin";
     private SimpleList<ProcessFS> processes=new SimpleList<>();
 
@@ -48,7 +49,11 @@ public class MainFrame extends JFrame {
 
         diskPanel=new JPanel();
         diskPanel.setLayout(new GridLayout(8,8,2,2));
-        JScrollPane diskScroll=new JScrollPane(diskPanel);
+        diskInfoLabel=new JLabel();
+        JPanel diskContainer=new JPanel(new BorderLayout());
+        diskContainer.add(diskInfoLabel,BorderLayout.NORTH);
+        diskContainer.add(diskPanel,BorderLayout.CENTER);
+        JScrollPane diskScroll=new JScrollPane(diskContainer);
 
         table=new JTable(tableModel);
         JScrollPane tableScroll=new JScrollPane(table);
@@ -78,6 +83,8 @@ public class MainFrame extends JFrame {
         JButton btnRen=new JButton("Renombrar");
         JButton btnDel=new JButton("Eliminar");
         JButton btnProc=new JButton("Simular cola");
+        JButton btnSave=new JButton("Guardar");
+        JButton btnLoad=new JButton("Cargar");
         modeCombo=new JComboBox<>(new String[]{"Administrador","Usuario"});
         policyCombo=new JComboBox<>(new String[]{"FIFO","SSTF","SCAN","C-SCAN"});
 
@@ -86,6 +93,8 @@ public class MainFrame extends JFrame {
         btnRen.addActionListener(e->renameAction());
         btnDel.addActionListener(e->deleteAction());
         btnProc.addActionListener(e->processQueue());
+        btnSave.addActionListener(e->saveAction());
+        btnLoad.addActionListener(e->loadAction());
         policyCombo.addActionListener(e->scheduler.setPolicy(policyCombo.getSelectedIndex()));
         modeCombo.addActionListener(e->{
             currentUser=modeCombo.getSelectedIndex()==0?"admin":"user";
@@ -94,7 +103,7 @@ public class MainFrame extends JFrame {
 
         p.add(new JLabel("Modo:"));p.add(modeCombo);
         p.add(new JLabel("Planificador:"));p.add(policyCombo);
-        p.add(btnDir);p.add(btnFile);p.add(btnRen);p.add(btnDel);p.add(btnProc);
+        p.add(btnDir);p.add(btnFile);p.add(btnRen);p.add(btnDel);p.add(btnProc);p.add(btnSave);p.add(btnLoad);
         return p;
     }
 
@@ -166,6 +175,18 @@ public class MainFrame extends JFrame {
         executeProcess(proc,()->fs.deletePath(path));
     }
 
+    private void saveAction(){
+        SaveLoad.save(fs,"estado.txt");
+        JOptionPane.showMessageDialog(this,"Estado guardado correctamente");
+    }
+
+    private void loadAction(){
+        resetFileSystem();
+        SaveLoad.load(fs,"estado.txt");
+        refreshAll();
+        JOptionPane.showMessageDialog(this,"Estado cargado correctamente");
+    }
+
     private void processQueue(){
         SimpleList<DiskRequest> ordered=scheduler.flushOrder();
         for(int i=0;i<ordered.size();i++){
@@ -190,13 +211,29 @@ public class MainFrame extends JFrame {
 
     private String getSelectedPath(){
         Object sel=tree.getLastSelectedPathComponent();
-        if(sel==null) return null;
+        if(sel==null) return getSelectedPathFromTable();
         DefaultMutableTreeNode node=(DefaultMutableTreeNode)sel;
         Object obj=node.getUserObject();
         if(obj instanceof FileEntry){
             return ((FileEntry)obj).getPath();
         }
         return null;
+    }
+
+    private String getSelectedPathFromTable(){
+        int row=table.getSelectedRow();
+        if(row<0) return null;
+        FileData fd=tableModel.getFileAt(row);
+        if(fd!=null) return fd.getPath();
+        return null;
+    }
+
+    private void resetFileSystem(){
+        int totalBlocks=fs.getDisk().size();
+        fs=new FileSystem(totalBlocks);
+        scheduler.setDisk(fs.getDisk());
+        processes=new SimpleList<>();
+        updateProcessList();
     }
 
     private boolean isAdmin(){return "admin".equals(currentUser);}
@@ -229,6 +266,9 @@ public class MainFrame extends JFrame {
     private void refreshDiskPanel(){
         diskPanel.removeAll();
         Disk d=fs.getDisk();
+        int free=d.countFree();
+        int total=d.size();
+        diskInfoLabel.setText("Bloques libres: "+free+" / "+total+(free==0?" (Memoria llena)":""));
         for(int i=0;i<d.size();i++){
             DiskBlock b=d.getBlock(i);
             JLabel lbl=new JLabel(String.valueOf(i),SwingConstants.CENTER);

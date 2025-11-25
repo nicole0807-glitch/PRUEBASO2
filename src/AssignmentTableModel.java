@@ -8,6 +8,11 @@ public class AssignmentTableModel extends AbstractTableModel {
         fireTableDataChanged();
     }
 
+    public FileData getFileAt(int row){
+        if(row<0||row>=data.size()) return null;
+        return data.get(row);
+    }
+
     @Override
     public int getRowCount(){return data.size();}
 
