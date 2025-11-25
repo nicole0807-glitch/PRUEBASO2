@@ -13,6 +13,10 @@ public class Scheduler {
         this.disk=disk;
     }
 
+    public void setDisk(Disk disk){
+        this.disk=disk;
+    }
+
     public void setPolicy(int p){this.policy=p;}
     public int getPolicy(){return policy;}
 
